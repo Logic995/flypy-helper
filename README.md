@@ -14,7 +14,7 @@
 需要 macOS 14 或更高版本，以及 Swift 6。
 
 ```bash
-git clone https://github.com/Logic995/FlypyHelper.git
+git clone https://github.com/Logic995/flypy-helper.git
 cd FlypyHelper
 swift run
 ```
