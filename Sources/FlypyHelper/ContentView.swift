@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var engine: PracticeEngine
+    let onClose: () -> Void
 
     var body: some View {
         VStack(spacing: 18) {
@@ -12,9 +13,10 @@ struct ContentView: View {
         .padding(22)
         .background(appBackground)
         .overlay {
-            KeyCaptureView { key in
-                engine.handle(key)
-            }
+            KeyCaptureView(
+                onKey: { key in engine.handle(key) },
+                onEscape: onClose
+            )
             .frame(width: 0, height: 0)
         }
     }
@@ -30,7 +32,7 @@ struct ContentView: View {
 
             modePicker
 
-            Text("⌘⌥K 参考 · TAB 提示 · SPACE 分隔/下一题 · ESC 清空")
+            Text("⌘⌥K 参考 · TAB 提示 · SPACE 分隔/下一题 · ESC 关闭")
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(.secondary)
         }
@@ -185,6 +187,6 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    ContentView(onClose: {})
         .environmentObject(PracticeEngine())
 }

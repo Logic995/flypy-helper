@@ -2,6 +2,8 @@ import SwiftUI
 
 struct ReferencePopoverView: View {
     let openPractice: () -> Void
+    let closeReference: () -> Void
+    let quitApplication: () -> Void
     @State private var highlightedKey: String?
     @State private var pendingHighlightReset: DispatchWorkItem?
 
@@ -30,9 +32,10 @@ struct ReferencePopoverView: View {
         }
         .preferredColorScheme(.dark)
         .overlay {
-            KeyCaptureView { key in
-                handleReferenceKey(key)
-            }
+            KeyCaptureView(
+                onKey: { key in handleReferenceKey(key) },
+                onEscape: closeReference
+            )
             .frame(width: 0, height: 0)
         }
     }
@@ -50,6 +53,17 @@ struct ReferencePopoverView: View {
                 .foregroundStyle(ReferencePalette.primaryText)
 
             Spacer()
+
+            Button {
+                quitApplication()
+            } label: {
+                Image(systemName: "power")
+                    .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(PanelPowerButtonStyle())
+            .help("退出 FlypyHelper")
+            .accessibilityLabel("退出 FlypyHelper")
         }
         .padding(.horizontal, 4)
     }
@@ -171,6 +185,19 @@ private struct FilledPanelButtonStyle: ButtonStyle {
             .background(
                 configuration.isPressed ? ReferencePalette.practiceButtonPressed : ReferencePalette.practiceButton,
                 in: RoundedRectangle(cornerRadius: 10)
+            )
+    }
+}
+
+private struct PanelPowerButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(configuration.isPressed ? Color.red : ReferencePalette.secondaryText)
+            .background(
+                configuration.isPressed
+                    ? Color.red.opacity(0.16)
+                    : ReferencePalette.controlFill,
+                in: Circle()
             )
     }
 }

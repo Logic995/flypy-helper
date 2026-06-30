@@ -68,7 +68,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.contentMinSize = size
         window.contentMaxSize = size
         window.contentView = NSHostingView(
-            rootView: ContentView()
+            rootView: ContentView(onClose: { [weak self] in
+                self?.closePracticeWindow()
+            })
                 .environmentObject(engine)
                 .frame(width: size.width, height: size.height)
         )

@@ -4,17 +4,18 @@ import AppKit
 enum CapturedKey {
     case letter(String)
     case delete
-    case escape
     case space
     case tab
 }
 
 struct KeyCaptureView: NSViewRepresentable {
     let onKey: (CapturedKey) -> Void
+    let onEscape: () -> Void
 
     func makeNSView(context: Context) -> CaptureNSView {
         let view = CaptureNSView()
         view.onKey = onKey
+        view.onEscape = onEscape
         DispatchQueue.main.async {
             view.window?.makeFirstResponder(view)
         }
@@ -23,6 +24,7 @@ struct KeyCaptureView: NSViewRepresentable {
 
     func updateNSView(_ view: CaptureNSView, context: Context) {
         view.onKey = onKey
+        view.onEscape = onEscape
         DispatchQueue.main.async {
             if view.window?.firstResponder !== view {
                 view.window?.makeFirstResponder(view)
@@ -33,6 +35,7 @@ struct KeyCaptureView: NSViewRepresentable {
 
 final class CaptureNSView: NSView {
     var onKey: ((CapturedKey) -> Void)?
+    var onEscape: (() -> Void)?
 
     override var acceptsFirstResponder: Bool { true }
 
@@ -56,7 +59,7 @@ final class CaptureNSView: NSView {
         case 51:
             onKey?(.delete)
         case 53:
-            onKey?(.escape)
+            onEscape?()
         case 48:
             onKey?(.tab)
         default:

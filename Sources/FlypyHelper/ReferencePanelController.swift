@@ -63,6 +63,7 @@ final class ReferencePanelController: NSObject, ObservableObject, NSPopoverDeleg
         button.toolTip = "小鹤双拼键位参考（⌘⌥K）"
         button.target = self
         button.action = #selector(statusItemClicked)
+        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
     }
 
     private func configurePopover() {
@@ -80,6 +81,12 @@ final class ReferencePanelController: NSObject, ObservableObject, NSPopoverDeleg
                     guard let self else { return }
                     self.closePopover(restoreFocus: false)
                     self.openPracticeAction()
+                },
+                closeReference: { [weak self] in
+                    self?.closePopover(restoreFocus: true)
+                },
+                quitApplication: {
+                    NSApplication.shared.terminate(nil)
                 }
             )
             .frame(width: Layout.width, height: Layout.height)
@@ -177,7 +184,28 @@ final class ReferencePanelController: NSObject, ObservableObject, NSPopoverDeleg
     }
 
     @objc
-    private func statusItemClicked() {
-        toggleFromStatusItem()
+    private func statusItemClicked(_ sender: NSStatusBarButton) {
+        guard NSApplication.shared.currentEvent?.type == .rightMouseUp else {
+            toggleFromStatusItem()
+            return
+        }
+
+        let menu = NSMenu()
+        let quitItem = NSMenuItem(
+            title: "退出 FlypyHelper",
+            action: #selector(quitApplication),
+            keyEquivalent: ""
+        )
+        quitItem.target = self
+        menu.addItem(quitItem)
+
+        if let event = NSApplication.shared.currentEvent {
+            NSMenu.popUpContextMenu(menu, with: event, for: sender)
+        }
+    }
+
+    @objc
+    private func quitApplication() {
+        NSApplication.shared.terminate(nil)
     }
 }

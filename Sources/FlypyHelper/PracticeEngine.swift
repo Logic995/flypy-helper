@@ -120,8 +120,6 @@ final class PracticeEngine: ObservableObject {
             append(letter)
         case .delete:
             deleteBackward()
-        case .escape:
-            clearInput()
         case .space:
             handleSpace()
         case .tab:
