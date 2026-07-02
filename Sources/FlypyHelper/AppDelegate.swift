@@ -3,7 +3,9 @@ import SwiftUI
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let engine = PracticeEngine()
+    private let profile = PracticeProfile()
+    private lazy var engine = PracticeEngine(profile: profile)
+    private lazy var challengeEngine = ChallengeEngine(profile: profile)
 
     private var referencePanelController: ReferencePanelController?
     private var hotKeyManager: HotKeyManager?
@@ -72,6 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.closePracticeWindow()
             })
                 .environmentObject(engine)
+                .environmentObject(challengeEngine)
                 .frame(width: size.width, height: size.height)
         )
         window.center()
