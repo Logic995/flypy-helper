@@ -84,8 +84,13 @@ enum PracticeContent {
         }
     }
 
-    static func pick(mode: PracticeMode, errorWeights: [String: Int]) -> PracticeUnit {
-        let pool = units(for: mode)
+    static func pick(
+        mode: PracticeMode,
+        errorWeights: [String: Int],
+        excludingTexts: Set<String> = []
+    ) -> PracticeUnit {
+        let available = units(for: mode).filter { !excludingTexts.contains($0.text) }
+        let pool = available.isEmpty ? units(for: mode) : available
         guard let fallback = pool.randomElement() else {
             return PracticeUnit(mode: .character, title: "今", text: "今", pinyins: ["jin"])
         }

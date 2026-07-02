@@ -15,26 +15,25 @@ final class PracticeEngine: ObservableObject {
     @Published var completedCharacters = 0
     @Published var typedKeys = 0
     @Published var bestKeysPerMinute = 0
-    @Published var errorWeights: [String: Int]
-
     private let modeKey = "FlypyHelper.mode"
-    private let weightsKey = "FlypyHelper.errorWeights"
     private let bestKpmKey = "FlypyHelper.bestKeysPerMinute"
+    private let profile: PracticeProfile
 
     private var startedAt = Date()
     private var lastWrongSignature = ""
+    private var evaluationGeneration = 0
+    private var pendingEvaluationTask: DispatchWorkItem?
     private var pendingResetTask: DispatchWorkItem?
     private var pendingHintTask: DispatchWorkItem?
 
-    init() {
+    init(profile: PracticeProfile = PracticeProfile()) {
+        self.profile = profile
         let savedMode = UserDefaults.standard.string(forKey: modeKey)
             .flatMap(PracticeMode.init(rawValue:)) ?? .character
-        let savedWeights = UserDefaults.standard.dictionary(forKey: weightsKey) as? [String: Int] ?? [:]
 
         self.mode = savedMode
-        self.errorWeights = savedWeights
         self.bestKeysPerMinute = UserDefaults.standard.integer(forKey: bestKpmKey)
-        self.practice = PracticeContent.pick(mode: savedMode, errorWeights: savedWeights)
+        self.practice = PracticeContent.pick(mode: savedMode, errorWeights: profile.errorWeights)
     }
 
     var targetCodes: [String] {
@@ -96,7 +95,7 @@ final class PracticeEngine: ObservableObject {
     }
 
     var weakFinals: [(String, Int)] {
-        errorWeights
+        profile.errorWeights
             .filter { $0.value > 0 }
             .sorted { lhs, rhs in
                 if lhs.value == rhs.value {
@@ -128,9 +127,10 @@ final class PracticeEngine: ObservableObject {
     }
 
     func nextPractice() {
+        cancelPendingEvaluation()
         pendingResetTask?.cancel()
         pendingHintTask?.cancel()
-        practice = PracticeContent.pick(mode: mode, errorWeights: errorWeights)
+        practice = PracticeContent.pick(mode: mode, errorWeights: profile.errorWeights)
         input = ""
         feedback = "直接输入双拼码"
         errorIndex = nil
@@ -141,6 +141,7 @@ final class PracticeEngine: ObservableObject {
     }
 
     func clearInput() {
+        cancelPendingEvaluation()
         pendingResetTask?.cancel()
         pendingHintTask?.cancel()
         input = ""
@@ -165,10 +166,16 @@ final class PracticeEngine: ObservableObject {
         hideNextKeyHint()
         input += letter.lowercased()
         typedKeys += 1
-        evaluateInput()
+
+        if validationDelay > 0 {
+            scheduleEvaluationAfterPause()
+        } else {
+            evaluateInput()
+        }
     }
 
     private func deleteBackward() {
+        cancelPendingEvaluation()
         pendingResetTask?.cancel()
         guard !input.isEmpty else { return }
         input.removeLast()
@@ -180,6 +187,7 @@ final class PracticeEngine: ObservableObject {
     }
 
     private func evaluateInput() {
+        pendingEvaluationTask = nil
         let result = InputEvaluator.evaluate(input: normalizedInput, targetCodes: targetCodes)
 
         switch result {
@@ -197,7 +205,40 @@ final class PracticeEngine: ObservableObject {
         }
     }
 
+    private func scheduleEvaluationAfterPause() {
+        cancelPendingEvaluation()
+        let generation = evaluationGeneration
+        feedback = "\(progressFeedback) · 输入中"
+
+        let task = DispatchWorkItem { [weak self] in
+            Task { @MainActor in
+                guard let self, self.evaluationGeneration == generation else { return }
+                self.evaluateInput()
+            }
+        }
+        pendingEvaluationTask = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + validationDelay, execute: task)
+    }
+
+    private func cancelPendingEvaluation() {
+        evaluationGeneration += 1
+        pendingEvaluationTask?.cancel()
+        pendingEvaluationTask = nil
+    }
+
+    private var validationDelay: TimeInterval {
+        switch mode {
+        case .character, .phrase:
+            0
+        case .sentence:
+            0.36
+        case .article:
+            0.46
+        }
+    }
+
     private func registerWrong(index: Int, expected: String, actual: String) {
+        cancelPendingEvaluation()
         let signature = "\(practice.id.uuidString)|\(index)|\(actual)"
         guard signature != lastWrongSignature else { return }
 
@@ -222,6 +263,7 @@ final class PracticeEngine: ObservableObject {
     }
 
     private func registerCorrect() {
+        cancelPendingEvaluation()
         pendingResetTask?.cancel()
         attemptedItems += 1
         correctItems += 1
@@ -312,20 +354,11 @@ final class PracticeEngine: ObservableObject {
     }
 
     private func increaseWeight(for final: String) {
-        errorWeights[final] = min((errorWeights[final] ?? 0) + 2, 18)
-        saveWeights()
+        profile.recordMistake(final: final)
     }
 
     private func decayWeights(for finals: [String]) {
-        for final in Set(finals) {
-            guard let current = errorWeights[final], current > 0 else { continue }
-            errorWeights[final] = max(current - 1, 0)
-        }
-        saveWeights()
-    }
-
-    private func saveWeights() {
-        UserDefaults.standard.set(errorWeights, forKey: weightsKey)
+        profile.recordSuccess(finals: finals)
     }
 }
 

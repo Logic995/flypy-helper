@@ -2,9 +2,29 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var engine: PracticeEngine
+    @EnvironmentObject private var challengeEngine: ChallengeEngine
     let onClose: () -> Void
+    @State private var showingChallenge = false
+    @State private var showingStats = false
 
     var body: some View {
+        Group {
+            if showingChallenge {
+                ChallengeView(
+                    onReturn: returnToPractice,
+                    onShowStats: { showingStats = true },
+                    onClose: closeWindow
+                )
+            } else {
+                practiceView
+            }
+        }
+        .sheet(isPresented: $showingStats) {
+            ChallengeStatsView(store: challengeEngine.history)
+        }
+    }
+
+    private var practiceView: some View {
         VStack(spacing: 18) {
             topBar
             promptCard
@@ -22,7 +42,7 @@ struct ContentView: View {
     }
 
     private var topBar: some View {
-        HStack(spacing: 28) {
+        HStack(spacing: 14) {
             stat(engine.accuracyText)
             stat("字/分 \(engine.charactersPerMinute)")
             stat("键/分 \(engine.keysPerMinute)")
@@ -32,7 +52,24 @@ struct ContentView: View {
 
             modePicker
 
-            Text("⌘⌥K 参考 · TAB 提示 · SPACE 分隔/下一题 · ESC 关闭")
+            Button {
+                challengeEngine.prepare()
+                showingChallenge = true
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "timer")
+                    Text("60 秒挑战")
+                }
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundStyle(.blue)
+                .padding(.horizontal, 10)
+                .frame(height: 28)
+                .background(.blue.opacity(0.12), in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("打开六十秒挑战")
+
+            Text("TAB 提示 · SPACE 下一题 · ESC 关闭")
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(.secondary)
         }
@@ -184,9 +221,22 @@ struct ContentView: View {
             endPoint: .bottomTrailing
         )
     }
+
+    private func returnToPractice() {
+        challengeEngine.cancel()
+        showingChallenge = false
+    }
+
+    private func closeWindow() {
+        challengeEngine.cancel()
+        showingChallenge = false
+        onClose()
+    }
 }
 
 #Preview {
+    let profile = PracticeProfile()
     ContentView(onClose: {})
-        .environmentObject(PracticeEngine())
+        .environmentObject(PracticeEngine(profile: profile))
+        .environmentObject(ChallengeEngine(profile: profile))
 }

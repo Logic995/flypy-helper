@@ -29,35 +29,32 @@ enum InputEvaluator {
         let normalizedInput = normalize(input)
         guard !normalizedInput.isEmpty else { return .empty }
 
-        let target = targetCodes.joined()
+        let normalizedTargetCodes = targetCodes.map(normalize)
+        let target = normalizedTargetCodes.joined()
         guard !target.isEmpty else { return .wrong(index: 0, expected: "", actual: normalizedInput) }
+
+        let completedCodeCount = normalizedInput.count / 2
+        let comparableCodeCount = min(completedCodeCount, normalizedTargetCodes.count)
+
+        for index in 0..<comparableCodeCount {
+            let actualCode = code(at: index, in: normalizedInput)
+            let expectedCode = normalizedTargetCodes[index]
+
+            if actualCode != expectedCode {
+                return .wrong(index: index, expected: expectedCode, actual: actualCode)
+            }
+        }
+
+        if normalizedInput.count > target.count {
+            let extraCode = code(at: normalizedTargetCodes.count, in: normalizedInput)
+            return .wrong(index: normalizedTargetCodes.count, expected: "", actual: extraCode)
+        }
 
         if normalizedInput == target {
             return .complete
         }
 
-        if normalizedInput.count > target.count {
-            let index = max(0, min(targetCodes.count - 1, targetCodes.count))
-            return .wrong(index: index, expected: "", actual: String(normalizedInput.suffix(2)))
-        }
-
-        if normalizedInput.count % 2 == 1 {
-            return .progress
-        }
-
-        let currentIndex = max(0, normalizedInput.count / 2 - 1)
-        guard currentIndex < targetCodes.count else {
-            return .wrong(index: targetCodes.count - 1, expected: "", actual: String(normalizedInput.suffix(2)))
-        }
-
-        let actualCode = code(at: currentIndex, in: normalizedInput)
-        let expectedCode = targetCodes[currentIndex]
-
-        if actualCode == expectedCode, target.hasPrefix(normalizedInput) {
-            return .progress
-        }
-
-        return .wrong(index: currentIndex, expected: expectedCode, actual: actualCode)
+        return .progress
     }
 
     private static func code(at index: Int, in input: String) -> String {

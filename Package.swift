@@ -16,6 +16,10 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "FlypyHelper"
+        ),
+        .testTarget(
+            name: "FlypyHelperTests",
+            dependencies: ["FlypyHelper"]
         )
     ]
 )
